@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>FATED CUBE - ULTIMATE PC (WORLD RECORDS)</title>
+    <title>FATED CUBE - BOSS 1 FINAL</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
         body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Orbitron', sans-serif; cursor: pointer; }
@@ -29,7 +29,6 @@
         .cinema-active .cinema-bar { height: 120px; }
         button { background: none; border: 2px solid #9d00ff; color: white; padding: 15px 30px; font-family: 'Orbitron'; cursor: pointer; margin-top: 20px; transition: 0.3s; }
         
-        /* UI SCORE & ESSAIS */
         .side-ui { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 20px; }
         .panel { background: rgba(0,0,0,0.85); border: 1px solid #9d00ff; padding: 15px; border-radius: 10px; width: 220px; font-size: 11px; color: white; }
         .record-entry { display: flex; justify-content: space-between; margin: 5px 0; border-bottom: 1px solid #333; padding-bottom: 2px; }
@@ -57,12 +56,12 @@
     <div class="side-ui">
         <div class="panel">
             <div style="color:#00f0ff; font-weight:bold; margin-bottom:10px; text-align:center;">📊 SESSION STATS</div>
-            <div class="record-entry"><span>NOM:</span><span id="statName">-</span></div>
-            <div class="record-entry"><span>ESSAIS:</span><span id="statTries">1</span></div>
+            <div class="record-entry"><span>COMBATTANT:</span><span id="statName">-</span></div>
+            <div class="record-entry"><span>TENTATIVES:</span><span id="statTries">1</span></div>
         </div>
         <div class="panel">
             <div style="color:#9d00ff; font-weight:bold; margin-bottom:10px; text-align:center;">🏆 WORLD RECORDS</div>
-            <div id="leaderboard">Connexion...</div>
+            <div id="leaderboard">Chargement...</div>
         </div>
     </div>
 
@@ -101,7 +100,6 @@
     let bossShake = 0, targetZoom = 1, lineDashOffset = 0;
     let lastTime = performance.now(), gameStartTime = 0;
     
-    // VARIABLES SESSION
     let playerName = "";
     let tries = 1;
 
@@ -112,7 +110,7 @@
     window.startGame = function() {
         if (state !== "START") return;
         if (!playerName) {
-            playerName = prompt("ENTREZ VOTRE NOM DE COMBATTANT :") || "Anonyme";
+            playerName = prompt("VOTRE NOM :") || "Anonyme";
             document.getElementById('statName').innerText = playerName.toUpperCase();
         }
         document.getElementById('intro').style.display = "none";
@@ -124,7 +122,6 @@
     window.retry = function() {
         tries++;
         document.getElementById('statTries').innerText = tries;
-        // Reset basique sans reload pour garder le nom
         state = "PLAYING";
         document.getElementById('gameOver').style.display = "none";
         p.hp = 3; p.x = 200; p.y = 325; p.tx = 200; p.ty = 325; p.inv = 1000;
@@ -231,11 +228,9 @@
         ctx.setTransform(zoom, 0, 0, zoom, (canvas.width/2) - camX * zoom + offX, (canvas.height/2) - camY * zoom + offY);
         ctx.fillStyle = "#0a0a0a"; ctx.fillRect(-2000, -2000, 4000, 4000);
 
-        // --- JOUEUR & DEFORMATION ---
         if (state !== "START" && state !== "GAMEOVER") {
             p.size += (p.targetSize - p.size) * 0.1 * dt;
             if (p.inv > 0) p.inv -= 16.6 * dt;
-
             if (state !== "CINEMATIC") {
                 let dx = 0, dy = 0;
                 if (keys['KeyW']) dy--; if (keys['KeyS']) dy++; if (keys['KeyA']) dx--; if (keys['KeyD']) dx++;
@@ -249,10 +244,8 @@
                 p.ang += (p.targetAng - p.ang) * 0.15 * dt;
                 p.x += (p.tx - p.x) * 0.35 * dt; p.y += (p.ty - p.y) * 0.35 * dt;
             }
-
             if (!(p.inv > 0 && Math.floor(currentTime/100)%2===0)) {
                 ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
-                // DEFORMATION DYNAMIQUE
                 let speedDist = Math.hypot(p.tx - p.x, p.ty - p.y);
                 let stretch = 1 + (speedDist / 25);
                 let squash = 1 / stretch;
@@ -263,7 +256,6 @@
             }
         }
 
-        // --- BOSS & WAVES ---
         if (!boss.dead) {
             boss.visualSize += (80 - boss.visualSize) * 0.1 * dt;
             ctx.save(); ctx.translate(boss.x + (Math.random()-0.5)*bossShake, boss.y + (Math.random()-0.5)*bossShake); 
@@ -278,12 +270,18 @@
             }
         }
 
+        // --- ATTAQUE QUI SUIT LE JOUEUR (MINIONS) ---
+        boss.minions.forEach(m => { 
+            let a = Math.atan2(p.y-m.y, p.x-m.x); 
+            m.x += Math.cos(a)*2.5*dt; m.y += Math.sin(a)*2.5*dt; 
+            ctx.fillStyle = boss.color; ctx.fillRect(m.x-10, m.y-10, 20, 20); 
+            if (Math.hypot(p.x-m.x, p.y-m.y) < 25) takeDamage(); 
+        });
+
         boss.waves.forEach((w, i) => { ctx.beginPath(); ctx.arc(boss.x, boss.y, w.r, 0, Math.PI*2); ctx.strokeStyle = boss.color; ctx.lineWidth = 18; ctx.stroke(); w.r += ((rage === 1) ? 8 : 6) * dt; if (w.r > 1500) boss.waves.splice(i, 1); if (Math.abs(Math.hypot(p.x-boss.x, p.y-boss.y)-w.r) < 25) takeDamage(); });
 
-        // --- FEU & METEORES ---
         meteors.forEach((m, i) => { 
             m.x += m.spd*dt; m.y += m.spd*dt; 
-            // EFFET DE FEU
             for(let j=0; j<2; j++) particles.push({x:m.x, y:m.y, vx:(Math.random()-0.5)*5, vy:(Math.random()-0.5)*5, s:Math.random()*10, l:0.5, c: Math.random()>0.5?"#ff4400":"#ffcc00"});
             ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill();
             if (m.y > 800) meteors.splice(i, 1); 
@@ -327,3 +325,4 @@
 </script>
 </body>
 </html>
+
