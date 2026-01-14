@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>FATED CUBE - ULTIMATE PC</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Orbitron', sans-serif; cursor: pointer; }
+        #gameCanvas { background: #0a0a0a; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); border-radius: 10px; }
+        .main-ui { position: relative; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        #bossTimerContainer { position: absolute; top: -50px; text-align: center; width: 100%; }
+        #bossTimer { font-size: 30px; color: #ff0066; text-shadow: 0 0 10px #ff0066; }
+        .hearts { display: flex; gap: 15px; }
+        .heart { width: 20px; height: 20px; background: #9d00ff; transform: rotate(45deg); position: relative; box-shadow: 0 0 10px #9d00ff; transition: 0.3s; }
+        .heart::before, .heart::after { content: ''; width: 20px; height: 20px; background: #9d00ff; border-radius: 50%; position: absolute; }
+        .heart::before { left: -10px; } .heart::after { top: -10px; }
+        .heart.dead { opacity: 0; transform: scale(0); filter: grayscale(1); }
+        .dash-bar { width: 150px; height: 10px; background: #111; border: 2px solid #333; border-radius: 5px; overflow: hidden; }
+        #dashFill { height: 100%; width: 0%; background: #444; }
+        #dashFill.ready { background: #00f0ff; box-shadow: 0 0 10px #00f0ff; }
+        .overlay { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; z-index: 100; pointer-events: none; }
+        #intro, #win, #gameOver { background: black; pointer-events: all; }
+        #qte, #flash, #prep, #win, #gameOver { display: none; }
+        #flash { animation: flashBg 0.4s infinite; z-index: 200; }
+        @keyframes flashBg { 0%, 100% { background: rgba(0, 240, 255, 0); } 50% { background: rgba(0, 240, 255, 0.4); } }
+        .title { font-size: 70px; color: #9d00ff; text-shadow: 0 0 30px #9d00ff; }
+        .cinema-bar { position: fixed; left: 0; width: 100%; height: 0; background: black; z-index: 1000; transition: height 1.5s ease; }
+        #bar-top { top: 0; } #bar-bottom { bottom: 0; }
+        .cinema-active .cinema-bar { height: 120px; }
+        button { background: none; border: 2px solid #9d00ff; color: white; padding: 15px 30px; font-family: 'Orbitron'; cursor: pointer; margin-top: 20px; transition: 0.3s; }
+    </style>
+</head>
+<body onclick="startGame()">
+
+    <div id="bar-top" class="cinema-bar"></div>
+    <div id="bar-bottom" class="cinema-bar"></div>
+
+    <div id="intro" class="overlay"><div class="title">FATED CUBE</div><div style="color:white; margin-top:20px;">CLIQUEZ POUR JOUER</div></div>
+    <div id="gameOver" class="overlay"><div class="title" style="color:#ff0000;">SYSTÈME CORROMPU</div><button onclick="location.reload()">RÉESSAYER</button></div>
+    <div id="win" class="overlay"><div class="title" style="color:#ffffff;">EXTERMINÉ</div><button onclick="location.reload()">BOSS SUIVANT</button></div>
+    <div id="flash" class="overlay"><div style="font-size:80px; font-weight:900; color:white; text-shadow: 0 0 20px #00f0ff;">OVERDRIVE!!!!!</div></div>
+    <div id="prep" class="overlay"><div style="color:#00f0ff; font-size:50px;">OVERDRIVE MODE</div><div style="color:#00f0ff; font-size: 80px;" id="prepClock">6</div></div>
+
+    <div id="qte" class="overlay">
+        <div style="border: 5px solid #ff0066; padding: 40px; background: rgba(255, 0, 102, 0.2); text-align: center; border-radius: 20px;">
+            <div id="qteKey" style="font-size: 100px; color: white;">?</div>
+            <div style="width: 300px; height: 20px; background: #111; margin: 20px 0; border: 1px solid white;"><div id="qteBar" style="width: 0%; height: 100%; background: #ff0066;"></div></div>
+            <div id="qteTimerDisplay" style="color: #ff0066; font-size: 24px;">5.0s</div>
+        </div>
+    </div>
+
+    <div class="main-ui">
+        <div id="bossTimerContainer"><div id="bossTimer">60.00</div></div>
+        <div class="hearts"><div id="h1" class="heart"></div><div id="h2" class="heart"></div><div id="h3" class="heart"></div></div>
+        <div style="display: flex; align-items: center; gap: 20px;">
+            <div style="text-align: center;"><div style="color:#9d00ff; font-size:10px;">DASH</div><div class="dash-bar"><div id="dashFill"></div></div></div>
+            <canvas id="gameCanvas"></canvas>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 1100; canvas.height = 650;
+
+    let state = "START", rage = 0, keys = {}, shake = 0, zoom = 1, overdriveUsed = false;
+    let qteOn = false, qteTarget = "", qteCount = 0, qteTime = 5000, qteItv;
+    let meteors = [], bossLife = 60000, chunks = [], godMode = false;
+    let bossShake = 0, targetZoom = 1, lineDashOffset = 0;
+    let lastTime = performance.now();
+
+    let p = { x: 200, y: 325, tx: 200, ty: 325, size: 0, targetSize: 18, spd: 10.5, ang: 0, targetAng: 0, str: 1, lastD: 0, dCoold: 500, hp: 3, inv: 0, color: "#9d00ff" };
+    let boss = { x: 550, y: 325, color: "#ff0066", waves: [], minions: [], dead: false, visualSize: 80 };
+    let particles = [], ghosts = [];
+
+    function startGame() {
+        if (state !== "START") return;
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        document.getElementById('intro').style.display = "none";
+        state = "PLAYING"; p.size = 0; p.inv = 1000;
+        for(let i=0; i<40; i++) particles.push({x:p.x, y:p.y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, s:10, l:1.5, c:p.color});
+    }
+
+    function takeDamage() {
+        let isDashing = (performance.now() - p.lastD < 120);
+        if (godMode || p.inv > 0 || state !== "PLAYING" || boss.dead || isDashing) return;
+        p.hp--; p.inv = 1200;
+        if (p.hp >= 0) document.getElementById('h'+(p.hp+1)).classList.add('dead');
+        if (p.hp <= 0) { state = "GAMEOVER"; document.getElementById('gameOver').style.display = "flex"; return; }
+        if (rage === 2) { shake = 40; return; }
+        startQTE();
+    }
+
+    function startQTE() {
+        qteOn = true; state = "PAUSED"; qteCount = 0; qteTime = 5000;
+        boss.waves = []; boss.minions = []; meteors = [];
+        qteTarget = ["KeyQ", "KeyW", "KeyE", "KeyR"][Math.floor(Math.random()*4)];
+        document.getElementById('qteKey').innerText = qteTarget.replace("Key", "");
+        document.getElementById('qte').style.display = "flex";
+        if (qteItv) clearInterval(qteItv);
+        qteItv = setInterval(() => { 
+            qteTime -= 100; 
+            document.getElementById('qteTimerDisplay').innerText = (qteTime/1000).toFixed(1) + "s";
+            if (qteTime <= 0) failQTE(); 
+        }, 100);
+    }
+
+    function failQTE() {
+        clearInterval(qteItv); document.getElementById('qte').style.display = "none"; qteOn = false;
+        if (rage === 1 && !overdriveUsed) { overdriveUsed = true; runOverdriveSequence(); } 
+        else { rage = 1; boss.color = "#ff0000"; p.inv = 2000; state = "PLAYING"; }
+    }
+
+    function successQTE() {
+        clearInterval(qteItv); document.getElementById('qte').style.display = "none"; qteOn = false;
+        rage = 0; boss.color = "#ff0066"; p.inv = 2000; state = "PLAYING";
+    }
+
+    function runOverdriveSequence() {
+        state = "PAUSED"; document.getElementById('flash').style.display = "flex";
+        p.hp = 3; for(let i=1; i<=3; i++) document.getElementById('h'+i).classList.remove('dead');
+        setTimeout(() => {
+            document.getElementById('flash').style.display = "none";
+            rage = 2; boss.color = "#00f0ff"; state = "PREP";
+            let count = 6; document.getElementById('prep').style.display = "flex";
+            let timer = setInterval(() => {
+                count--; document.getElementById('prepClock').innerText = count;
+                if (count <= 0) { clearInterval(timer); document.getElementById('prep').style.display = "none"; state = "PLAYING"; p.inv = 1000; }
+            }, 1000);
+        }, 1500);
+    }
+
+    window.onkeydown = (e) => {
+        if (e.code === 'KeyK') godMode = !godMode;
+        if (e.code === 'KeyM' && state === "PLAYING") bossLife -= 10000;
+        if (qteOn) {
+            if (e.code === qteTarget && !keys[e.code]) {
+                qteCount++; document.getElementById('qteBar').style.width = (qteCount/20*100) + "%";
+                if (qteCount >= 20) successQTE();
+            } else if (!keys[e.code] && ["KeyQ","KeyW","KeyE","KeyR","Space"].includes(e.code)) {
+                failQTE();
+            }
+        }
+        keys[e.code] = true;
+    };
+
+    window.onkeyup = (e) => {
+        if (e.code === 'Space' && performance.now() - p.lastD >= p.dCoold && state !== "PAUSED" && !qteOn) {
+            dash();
+        }
+        keys[e.code] = false;
+    };
+
+    function dash() {
+        let dx = 0, dy = 0;
+        if (keys['KeyW']) dy--; if (keys['KeyS']) dy++; if (keys['KeyA']) dx--; if (keys['KeyD']) dx++;
+        if (dx === 0 && dy === 0) { dx = Math.cos(p.ang); dy = Math.sin(p.ang); }
+        let mag = Math.sqrt(dx*dx+dy*dy) || 1;
+        p.lastD = performance.now(); 
+        p.tx = Math.max(15, Math.min(1085, p.tx + (dx/mag)*230)); 
+        p.ty = Math.max(15, Math.min(635, p.ty + (dy/mag)*230));
+        p.x = p.tx; p.y = p.ty;
+        for(let i=0; i<30; i++) particles.push({x:p.x, y:p.y, vx:(Math.random()-0.5)*20, vy:(Math.random()-0.5)*20, s:8, l:1, c:p.color});
+    }
+
+    function update(currentTime) {
+        let dt = (currentTime - lastTime) / 16.66;
+        if (dt > 2) dt = 2; lastTime = currentTime;
+        lineDashOffset -= 2 * dt;
+
+        if (state === "PLAYING") {
+            shake = Math.max(shake, rage === 2 ? 18 : (rage === 1 ? 4 : 0));
+            bossLife -= 16.66 * dt;
+            document.getElementById('bossTimer').innerText = (Math.max(0, bossLife)/1000).toFixed(2);
+            if (bossLife <= 0) startDeathCinematic();
+            
+            let dashProgress = Math.min(100, (performance.now() - p.lastD) / p.dCoold * 100);
+            let fill = document.getElementById('dashFill');
+            fill.style.width = dashProgress + "%";
+            if (dashProgress >= 100) fill.classList.add('ready'); else fill.classList.remove('ready');
+        }
+
+        zoom += (targetZoom - zoom) * 0.05 * dt;
+        let offX = (Math.random()-0.5)*shake, offY = (Math.random()-0.5)*shake;
+        shake *= Math.pow(0.94, dt);
+
+        let camX = (state === "CINEMATIC") ? boss.x : canvas.width/2;
+        let camY = (state === "CINEMATIC") ? boss.y : canvas.height/2;
+        ctx.setTransform(zoom, 0, 0, zoom, (canvas.width/2) - camX * zoom + offX, (canvas.height/2) - camY * zoom + offY);
+        ctx.fillStyle = "#0a0a0a"; ctx.fillRect(-2000, -2000, 4000, 4000);
+
+        if (state !== "START" && state !== "GAMEOVER") {
+            let dashing = (performance.now() - p.lastD < 100);
+            p.size += (p.targetSize - p.size) * 0.1 * dt;
+            if (p.inv > 0) p.inv -= 16.6 * dt;
+
+            if (state !== "CINEMATIC") {
+                let dx = 0, dy = 0;
+                if (keys['KeyW']) dy--; if (keys['KeyS']) dy++; if (keys['KeyA']) dx--; if (keys['KeyD']) dx++;
+                if (dx !== 0 || dy !== 0) { 
+                    p.targetAng = Math.atan2(dy, dx); 
+                    let m = Math.sqrt(dx*dx+dy*dy) || 1; 
+                    p.tx = Math.max(15, Math.min(1085, p.tx + (dx/m) * p.spd * dt)); 
+                    p.ty = Math.max(15, Math.min(635, p.ty + (dy/m) * p.spd * dt));
+                    if(Math.random() < 0.6 * dt) particles.push({x: p.x, y: p.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, s: 5, l: 0.8, c: p.color});
+                }
+                p.ang += (p.targetAng - p.ang) * 0.15 * dt;
+                p.x += (p.tx - p.x) * 0.35 * dt; p.y += (p.ty - p.y) * 0.35 * dt;
+
+                // PREVISUALISATION DU DASH NON-LINEAIRE (POINTILLÉE ET ANIMÉE)
+                if (keys['Space'] && (performance.now() - p.lastD >= p.dCoold)) {
+                    let dDx = 0, dDy = 0;
+                    if (keys['KeyW']) dDy--; if (keys['KeyS']) dDy++; if (keys['KeyA']) dDx--; if (keys['KeyD']) dDx++;
+                    if (dDx === 0 && dDy === 0) { dDx = Math.cos(p.ang); dDy = Math.sin(p.ang); }
+                    let dMag = Math.sqrt(dDx*dDx+dDy*dDy) || 1;
+                    let predX = Math.max(15, Math.min(1085, p.x + (dDx/dMag)*230));
+                    let predY = Math.max(15, Math.min(635, p.y + (dDy/dMag)*230));
+                    
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(predX, predY);
+                    ctx.strokeStyle = "rgba(0, 240, 255, 0.7)";
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([8, 4]); // Style pointillé
+                    ctx.lineDashOffset = lineDashOffset; // Animation de défilement
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = "#00f0ff";
+                    ctx.stroke();
+                    // Petit curseur à l'arrivée
+                    ctx.beginPath();
+                    ctx.arc(predX, predY, 5, 0, Math.PI*2);
+                    ctx.fillStyle = "white";
+                    ctx.fill();
+                    ctx.restore();
+                }
+
+                if (dashing) ghosts.push({x:p.x, y:p.y, a:p.ang, op:0.8});
+            }
+
+            ghosts.forEach((g, i) => { ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.a); ctx.fillStyle = `rgba(157, 0, 255, ${g.op})`; ctx.fillRect(-p.size*3, -p.size/2, p.size*6, p.size); ctx.restore(); g.op -= 0.1 * dt; if (g.op <= 0) ghosts.splice(i, 1); });
+
+            if (!(p.inv > 0 && Math.floor(currentTime/100)%2===0)) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.ang);
+                let speedDist = Math.hypot(p.tx - p.x, p.ty - p.y);
+                let stretch = 1 + (speedDist / 30);
+                let squash = 1 / stretch;
+                ctx.scale(stretch, squash);
+                ctx.fillStyle = godMode ? "white" : p.color; 
+                ctx.strokeStyle = "black"; ctx.lineWidth = 2;
+                ctx.shadowBlur = godMode ? 40 : 15; ctx.shadowColor = ctx.fillStyle;
+                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                ctx.strokeRect(-p.size/2, -p.size/2, p.size, p.size);
+                ctx.restore();
+            }
+        }
+
+        if (!boss.dead) {
+            boss.visualSize += (80 - boss.visualSize) * 0.1 * dt;
+            ctx.save(); ctx.translate(boss.x + (Math.random()-0.5)*bossShake, boss.y + (Math.random()-0.5)*bossShake); 
+            ctx.fillStyle = boss.color; ctx.strokeStyle = "black"; ctx.lineWidth = 3;
+            ctx.shadowBlur = 30; ctx.shadowColor = boss.color;
+            ctx.fillRect(-boss.visualSize/2, -boss.visualSize/2, boss.visualSize, boss.visualSize);
+            ctx.strokeRect(-boss.visualSize/2, -boss.visualSize/2, boss.visualSize, boss.visualSize);
+            ctx.restore();
+
+            if (state === "PLAYING") {
+                let freq = (rage === 1) ? 1100 : 2100;
+                if (Math.floor(currentTime/freq) !== Math.floor((currentTime-20)/freq)) { boss.waves.push({r: 10}); boss.visualSize = 110; }
+                if (Math.floor(currentTime/3500) !== Math.floor((currentTime-20)/3500)) boss.minions.push({x:boss.x, y:boss.y});
+                if (rage === 2 && Math.random() < 0.22) meteors.push({ x: Math.random()*canvas.width*1.5-canvas.width*0.5, y: 20, spd: 11 });
+            }
+        }
+
+        boss.minions.forEach(m => { let a = Math.atan2(p.y-m.y, p.x-m.x); m.x += Math.cos(a)*2.5*dt; m.y += Math.sin(a)*2.5*dt; ctx.fillStyle = boss.color; ctx.strokeStyle="black"; ctx.fillRect(m.x-10, m.y-10, 20, 20); ctx.strokeRect(m.x-10, m.y-10, 20, 20); if (Math.hypot(p.x-m.x, p.y-m.y) < 25) takeDamage(); });
+        boss.waves.forEach((w, i) => { ctx.beginPath(); ctx.arc(boss.x, boss.y, w.r, 0, Math.PI*2); ctx.strokeStyle = boss.color; ctx.lineWidth = 18; ctx.stroke(); w.r += ((rage === 1) ? 8 : 6) * dt; if (w.r > 1500) boss.waves.splice(i, 1); if (Math.abs(Math.hypot(p.x-boss.x, p.y-boss.y)-w.r) < 25) takeDamage(); });
+
+        meteors.forEach((m, i) => { 
+            m.x += m.spd*dt; m.y += m.spd*dt; 
+            if(Math.random() < 0.8) particles.push({x:m.x, y:m.y, vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4, s:Math.random()*8, l:0.6, c: Math.random() > 0.5 ? "#ff4400" : "#ffcc00"});
+            ctx.save();
+            ctx.shadowBlur = 20; ctx.shadowColor = "#ff4400";
+            ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(m.x, m.y, 10, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+            if (m.y > 800) meteors.splice(i, 1); 
+            if (Math.hypot(p.x-m.x, p.y-m.y) < 35) takeDamage(); 
+        });
+
+        chunks.forEach((c, i) => { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot); ctx.fillStyle = "white"; ctx.fillRect(-c.size/2, -c.size/2, c.size, c.size); ctx.restore(); c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.vrot * dt; c.l -= 0.01 * dt; if(c.l <= 0) chunks.splice(i, 1); });
+        particles.forEach((pt, i) => { ctx.save(); ctx.globalAlpha = Math.max(0, pt.l); ctx.fillStyle = pt.c; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); ctx.restore(); pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.l -= 0.02*dt; if (pt.l <= 0) particles.splice(i, 1); });
+        
+        requestAnimationFrame(update);
+    }
+
+    function startDeathCinematic() {
+        state = "CINEMATIC"; document.body.classList.add('cinema-active');
+        setTimeout(() => { targetZoom = 2.5; 
+            setTimeout(() => {
+                let intensity = 0;
+                let tremble = setInterval(() => { intensity += 0.5; bossShake = intensity;
+                    if (intensity > 25) { clearInterval(tremble); bossShake = 0;
+                        setTimeout(() => { boss.dead = true; explodeBoss(); }, 500);
+                    }
+                }, 50);
+            }, 1500);
+        }, 1500);
+    }
+    
+    function explodeBoss() {
+        shake = 100; document.body.classList.remove('cinema-active');
+        for(let i=0; i<300; i++) particles.push({x:boss.x, y:boss.y, vx:(Math.random()-0.5)*50, vy:(Math.random()-0.5)*50, s:Math.random()*15, l:2.5, c:"white"});
+        for(let i=0; i<50; i++) chunks.push({x: boss.x, y: boss.y, vx: (Math.random()-0.5)*35, vy: (Math.random()-0.5)*35, rot: Math.random()*6, vrot: (Math.random()-0.5)*0.3, size: 15+Math.random()*25, l: 3});
+        setTimeout(() => { document.getElementById('win').style.display = "flex"; state = "WIN"; targetZoom = 1; }, 3500);
+    }
+    requestAnimationFrame(update);
+</script>
+</body>
+</html>
