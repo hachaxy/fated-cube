@@ -29,8 +29,9 @@
         .cinema-active .cinema-bar { height: 120px; }
         button { background: none; border: 2px solid #9d00ff; color: white; padding: 15px 30px; font-family: 'Orbitron'; cursor: pointer; margin-top: 20px; transition: 0.3s; }
         
-        /* AJOUT : LE TABLEAU DES RECORDS */
-        .world-records { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,0.8); border: 1px solid #9d00ff; padding: 15px; border-radius: 10px; width: 200px; font-size: 12px; color: white; }
+        /* UI SCORE & ESSAIS */
+        .side-ui { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 20px; }
+        .panel { background: rgba(0,0,0,0.85); border: 1px solid #9d00ff; padding: 15px; border-radius: 10px; width: 220px; font-size: 11px; color: white; }
         .record-entry { display: flex; justify-content: space-between; margin: 5px 0; border-bottom: 1px solid #333; padding-bottom: 2px; }
     </style>
 </head>
@@ -40,8 +41,8 @@
     <div id="bar-bottom" class="cinema-bar"></div>
 
     <div id="intro" class="overlay"><div class="title">FATED CUBE</div><div style="color:white; margin-top:20px;">CLIQUEZ POUR JOUER</div></div>
-    <div id="gameOver" class="overlay"><div class="title" style="color:#ff0000;">SYSTÈME CORROMPU</div><button onclick="location.reload()">RÉESSAYER</button></div>
-    <div id="win" class="overlay"><div class="title" style="color:#ffffff;">EXTERMINÉ</div><button onclick="location.reload()">REJOUER</button></div>
+    <div id="gameOver" class="overlay"><div class="title" style="color:#ff0000;">SYSTÈME CORROMPU</div><button onclick="retry()">RÉESSAYER</button></div>
+    <div id="win" class="overlay"><div class="title" style="color:#ffffff;">EXTERMINÉ</div><button onclick="location.reload()">BOSS SUIVANT</button></div>
     <div id="flash" class="overlay"><div style="font-size:80px; font-weight:900; color:white; text-shadow: 0 0 20px #00f0ff;">OVERDRIVE!!!!!</div></div>
     <div id="prep" class="overlay"><div style="color:#00f0ff; font-size:50px;">OVERDRIVE MODE</div><div style="color:#00f0ff; font-size: 80px;" id="prepClock">6</div></div>
 
@@ -53,9 +54,16 @@
         </div>
     </div>
 
-    <div class="world-records">
-        <div style="color:#9d00ff; font-weight:bold; margin-bottom:10px; text-align:center;">🏆 WORLD RECORDS</div>
-        <div id="leaderboard">Chargement...</div>
+    <div class="side-ui">
+        <div class="panel">
+            <div style="color:#00f0ff; font-weight:bold; margin-bottom:10px; text-align:center;">📊 SESSION STATS</div>
+            <div class="record-entry"><span>NOM:</span><span id="statName">-</span></div>
+            <div class="record-entry"><span>ESSAIS:</span><span id="statTries">1</span></div>
+        </div>
+        <div class="panel">
+            <div style="color:#9d00ff; font-weight:bold; margin-bottom:10px; text-align:center;">🏆 WORLD RECORDS</div>
+            <div id="leaderboard">Connexion...</div>
+        </div>
     </div>
 
     <div class="main-ui">
@@ -68,7 +76,6 @@
     </div>
 
 <script type="module">
-    // --- INTEGRATION FIREBASE ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -84,7 +91,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // --- TON CODE ORIGINAL (SANS MODIF) ---
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 1100; canvas.height = 650;
@@ -93,20 +99,38 @@
     let qteOn = false, qteTarget = "", qteCount = 0, qteTime = 5000, qteItv;
     let meteors = [], bossLife = 60000, chunks = [], godMode = false;
     let bossShake = 0, targetZoom = 1, lineDashOffset = 0;
-    let lastTime = performance.now();
-    let gameStartTime = 0; // Ajouté pour calculer le score final
+    let lastTime = performance.now(), gameStartTime = 0;
+    
+    // VARIABLES SESSION
+    let playerName = "";
+    let tries = 1;
 
-    let p = { x: 200, y: 325, tx: 200, ty: 325, size: 0, targetSize: 18, spd: 10.5, ang: 0, targetAng: 0, str: 1, lastD: 0, dCoold: 500, hp: 3, inv: 0, color: "#9d00ff" };
+    let p = { x: 200, y: 325, tx: 200, ty: 325, size: 0, targetSize: 18, spd: 10.5, ang: 0, targetAng: 0, lastD: 0, dCoold: 500, hp: 3, inv: 0, color: "#9d00ff" };
     let boss = { x: 550, y: 325, color: "#ff0066", waves: [], minions: [], dead: false, visualSize: 80 };
     let particles = [], ghosts = [];
 
-    window.startGame = function() { // Mis en global pour l'onclick
+    window.startGame = function() {
         if (state !== "START") return;
-        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+        if (!playerName) {
+            playerName = prompt("ENTREZ VOTRE NOM DE COMBATTANT :") || "Anonyme";
+            document.getElementById('statName').innerText = playerName.toUpperCase();
+        }
         document.getElementById('intro').style.display = "none";
         state = "PLAYING"; p.size = 0; p.inv = 1000;
         gameStartTime = Date.now();
         for(let i=0; i<40; i++) particles.push({x:p.x, y:p.y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, s:10, l:1.5, c:p.color});
+    }
+
+    window.retry = function() {
+        tries++;
+        document.getElementById('statTries').innerText = tries;
+        // Reset basique sans reload pour garder le nom
+        state = "PLAYING";
+        document.getElementById('gameOver').style.display = "none";
+        p.hp = 3; p.x = 200; p.y = 325; p.tx = 200; p.ty = 325; p.inv = 1000;
+        bossLife = 60000; boss.waves = []; boss.minions = []; meteors = [];
+        for(let i=1; i<=3; i++) document.getElementById('h'+i).classList.remove('dead');
+        gameStartTime = Date.now();
     }
 
     function takeDamage() {
@@ -121,7 +145,6 @@
 
     function startQTE() {
         qteOn = true; state = "PAUSED"; qteCount = 0; qteTime = 5000;
-        boss.waves = []; boss.minions = []; meteors = [];
         qteTarget = ["KeyQ", "KeyW", "KeyE", "KeyR"][Math.floor(Math.random()*4)];
         document.getElementById('qteKey').innerText = qteTarget.replace("Key", "");
         document.getElementById('qte').style.display = "flex";
@@ -161,21 +184,15 @@
     window.onkeydown = (e) => {
         if (e.code === 'KeyK') godMode = !godMode;
         if (e.code === 'KeyM' && state === "PLAYING") bossLife -= 10000;
-        if (qteOn) {
-            if (e.code === qteTarget && !keys[e.code]) {
-                qteCount++; document.getElementById('qteBar').style.width = (qteCount/20*100) + "%";
-                if (qteCount >= 20) successQTE();
-            } else if (!keys[e.code] && ["KeyQ","KeyW","KeyE","KeyR","Space"].includes(e.code)) {
-                failQTE();
-            }
+        if (qteOn && e.code === qteTarget && !keys[e.code]) {
+            qteCount++; document.getElementById('qteBar').style.width = (qteCount/20*100) + "%";
+            if (qteCount >= 20) successQTE();
         }
         keys[e.code] = true;
     };
 
     window.onkeyup = (e) => {
-        if (e.code === 'Space' && performance.now() - p.lastD >= p.dCoold && state !== "PAUSED" && !qteOn) {
-            dash();
-        }
+        if (e.code === 'Space' && performance.now() - p.lastD >= p.dCoold && state !== "PAUSED" && !qteOn) dash();
         keys[e.code] = false;
     };
 
@@ -185,8 +202,7 @@
         if (dx === 0 && dy === 0) { dx = Math.cos(p.ang); dy = Math.sin(p.ang); }
         let mag = Math.sqrt(dx*dx+dy*dy) || 1;
         p.lastD = performance.now(); 
-        p.tx = Math.max(15, Math.min(1085, p.tx + (dx/mag)*230)); 
-        p.ty = Math.max(15, Math.min(635, p.ty + (dy/mag)*230));
+        p.tx = Math.max(15, Math.min(1085, p.tx + (dx/mag)*230)); p.ty = Math.max(15, Math.min(635, p.ty + (dy/mag)*230));
         p.x = p.tx; p.y = p.ty;
         for(let i=0; i<30; i++) particles.push({x:p.x, y:p.y, vx:(Math.random()-0.5)*20, vy:(Math.random()-0.5)*20, s:8, l:1, c:p.color});
     }
@@ -201,11 +217,9 @@
             bossLife -= 16.66 * dt;
             document.getElementById('bossTimer').innerText = (Math.max(0, bossLife)/1000).toFixed(2);
             if (bossLife <= 0) startDeathCinematic();
-            
             let dashProgress = Math.min(100, (performance.now() - p.lastD) / p.dCoold * 100);
-            let fill = document.getElementById('dashFill');
-            fill.style.width = dashProgress + "%";
-            if (dashProgress >= 100) fill.classList.add('ready'); else fill.classList.remove('ready');
+            document.getElementById('dashFill').style.width = dashProgress + "%";
+            if (dashProgress >= 100) document.getElementById('dashFill').classList.add('ready');
         }
 
         zoom += (targetZoom - zoom) * 0.05 * dt;
@@ -217,8 +231,8 @@
         ctx.setTransform(zoom, 0, 0, zoom, (canvas.width/2) - camX * zoom + offX, (canvas.height/2) - camY * zoom + offY);
         ctx.fillStyle = "#0a0a0a"; ctx.fillRect(-2000, -2000, 4000, 4000);
 
+        // --- JOUEUR & DEFORMATION ---
         if (state !== "START" && state !== "GAMEOVER") {
-            let dashing = (performance.now() - p.lastD < 100);
             p.size += (p.targetSize - p.size) * 0.1 * dt;
             if (p.inv > 0) p.inv -= 16.6 * dt;
 
@@ -228,74 +242,63 @@
                 if (dx !== 0 || dy !== 0) { 
                     p.targetAng = Math.atan2(dy, dx); 
                     let m = Math.sqrt(dx*dx+dy*dy) || 1; 
-                    p.tx = Math.max(15, Math.min(1085, p.tx + (dx/m) * p.spd * dt)); 
-                    p.ty = Math.max(15, Math.min(635, p.ty + (dy/m) * p.spd * dt));
+                    p.tx = Math.max(15, Math.min(1085, p.tx + (dx/m) * 10.5 * dt)); 
+                    p.ty = Math.max(15, Math.min(635, p.ty + (dy/m) * 10.5 * dt));
                     if(Math.random() < 0.6 * dt) particles.push({x: p.x, y: p.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, s: 5, l: 0.8, c: p.color});
                 }
                 p.ang += (p.targetAng - p.ang) * 0.15 * dt;
                 p.x += (p.tx - p.x) * 0.35 * dt; p.y += (p.ty - p.y) * 0.35 * dt;
-
-                if (keys['Space'] && (performance.now() - p.lastD >= p.dCoold)) {
-                    let dDx = 0, dDy = 0;
-                    if (keys['KeyW']) dDy--; if (keys['KeyS']) dDy++; if (keys['KeyA']) dDx--; if (keys['KeyD']) dDx++;
-                    if (dDx === 0 && dDy === 0) { dDx = Math.cos(p.ang); dDy = Math.sin(p.ang); }
-                    let dMag = Math.sqrt(dDx*dDx+dDy*dDy) || 1;
-                    let predX = Math.max(15, Math.min(1085, p.x + (dDx/dMag)*230));
-                    let predY = Math.max(15, Math.min(635, p.y + (dDy/dMag)*230));
-                    
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(p.x, p.y); ctx.lineTo(predX, predY);
-                    ctx.strokeStyle = "rgba(0, 240, 255, 0.7)";
-                    ctx.lineWidth = 3; ctx.setLineDash([8, 4]);
-                    ctx.lineDashOffset = lineDashOffset;
-                    ctx.stroke(); ctx.restore();
-                }
-                if (dashing) ghosts.push({x:p.x, y:p.y, a:p.ang, op:0.8});
             }
-            ghosts.forEach((g, i) => { ctx.save(); ctx.translate(g.x, g.y); ctx.rotate(g.a); ctx.fillStyle = `rgba(157, 0, 255, ${g.op})`; ctx.fillRect(-p.size*3, -p.size/2, p.size*6, p.size); ctx.restore(); g.op -= 0.1 * dt; if (g.op <= 0) ghosts.splice(i, 1); });
 
             if (!(p.inv > 0 && Math.floor(currentTime/100)%2===0)) {
                 ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
-                ctx.fillStyle = godMode ? "white" : p.color; ctx.strokeStyle = "black"; ctx.lineWidth = 2;
-                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); ctx.strokeRect(-p.size/2, -p.size/2, p.size, p.size);
+                // DEFORMATION DYNAMIQUE
+                let speedDist = Math.hypot(p.tx - p.x, p.ty - p.y);
+                let stretch = 1 + (speedDist / 25);
+                let squash = 1 / stretch;
+                ctx.scale(stretch, squash);
+                ctx.fillStyle = godMode ? "white" : p.color; ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
+                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
                 ctx.restore();
             }
         }
 
+        // --- BOSS & WAVES ---
         if (!boss.dead) {
             boss.visualSize += (80 - boss.visualSize) * 0.1 * dt;
             ctx.save(); ctx.translate(boss.x + (Math.random()-0.5)*bossShake, boss.y + (Math.random()-0.5)*bossShake); 
             ctx.fillStyle = boss.color; ctx.shadowBlur = 30; ctx.shadowColor = boss.color;
             ctx.fillRect(-boss.visualSize/2, -boss.visualSize/2, boss.visualSize, boss.visualSize);
             ctx.restore();
-
             if (state === "PLAYING") {
                 let freq = (rage === 1) ? 1100 : 2100;
                 if (Math.floor(currentTime/freq) !== Math.floor((currentTime-20)/freq)) { boss.waves.push({r: 10}); boss.visualSize = 110; }
                 if (Math.floor(currentTime/3500) !== Math.floor((currentTime-20)/3500)) boss.minions.push({x:boss.x, y:boss.y});
-                if (rage === 2 && Math.random() < 0.22) meteors.push({ x: Math.random()*canvas.width*1.5-canvas.width*0.5, y: 20, spd: 11 });
+                if (rage === 2 && Math.random() < 0.25) meteors.push({ x: Math.random()*canvas.width*1.5-canvas.width*0.5, y: -50, spd: 11 });
             }
         }
 
-        boss.minions.forEach(m => { let a = Math.atan2(p.y-m.y, p.x-m.x); m.x += Math.cos(a)*2.5*dt; m.y += Math.sin(a)*2.5*dt; ctx.fillStyle = boss.color; ctx.fillRect(m.x-10, m.y-10, 20, 20); if (Math.hypot(p.x-m.x, p.y-m.y) < 25) takeDamage(); });
         boss.waves.forEach((w, i) => { ctx.beginPath(); ctx.arc(boss.x, boss.y, w.r, 0, Math.PI*2); ctx.strokeStyle = boss.color; ctx.lineWidth = 18; ctx.stroke(); w.r += ((rage === 1) ? 8 : 6) * dt; if (w.r > 1500) boss.waves.splice(i, 1); if (Math.abs(Math.hypot(p.x-boss.x, p.y-boss.y)-w.r) < 25) takeDamage(); });
-        meteors.forEach((m, i) => { m.x += m.spd*dt; m.y += m.spd*dt; ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill(); if (m.y > 800) meteors.splice(i, 1); if (Math.hypot(p.x-m.x, p.y-m.y) < 35) takeDamage(); });
-        chunks.forEach((c, i) => { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot); ctx.fillStyle = "white"; ctx.fillRect(-c.size/2, -c.size/2, c.size, c.size); ctx.restore(); c.x += c.vx * dt; c.y += c.vy * dt; c.rot += c.vrot * dt; c.l -= 0.01 * dt; if(c.l <= 0) chunks.splice(i, 1); });
-        particles.forEach((pt, i) => { ctx.save(); ctx.globalAlpha = Math.max(0, pt.l); ctx.fillStyle = pt.c; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); ctx.restore(); pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.l -= 0.02*dt; if (pt.l <= 0) particles.splice(i, 1); });
-        
+
+        // --- FEU & METEORES ---
+        meteors.forEach((m, i) => { 
+            m.x += m.spd*dt; m.y += m.spd*dt; 
+            // EFFET DE FEU
+            for(let j=0; j<2; j++) particles.push({x:m.x, y:m.y, vx:(Math.random()-0.5)*5, vy:(Math.random()-0.5)*5, s:Math.random()*10, l:0.5, c: Math.random()>0.5?"#ff4400":"#ffcc00"});
+            ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill();
+            if (m.y > 800) meteors.splice(i, 1); 
+            if (Math.hypot(p.x-m.x, p.y-m.y) < 35) takeDamage(); 
+        });
+
+        particles.forEach((pt, i) => { ctx.save(); ctx.globalAlpha = pt.l; ctx.fillStyle = pt.c; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); ctx.restore(); pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.l -= 0.02*dt; if (pt.l <= 0) particles.splice(i, 1); });
         requestAnimationFrame(update);
     }
 
     function startDeathCinematic() {
         state = "CINEMATIC"; document.body.classList.add('cinema-active');
-        setTimeout(() => { targetZoom = 2.5; 
-            setTimeout(() => {
-                let intensity = 0;
-                let tremble = setInterval(() => { intensity += 0.5; bossShake = intensity;
-                    if (intensity > 25) { clearInterval(tremble); bossShake = 0;
-                        setTimeout(() => { boss.dead = true; explodeBoss(); }, 500);
-                    }
+        setTimeout(() => { targetZoom = 2.5; setTimeout(() => {
+                let intensity = 0; let tremble = setInterval(() => { intensity += 0.5; bossShake = intensity;
+                    if (intensity > 25) { clearInterval(tremble); bossShake = 0; setTimeout(() => { boss.dead = true; explodeBoss(); }, 500); }
                 }, 50);
             }, 1500);
         }, 1500);
@@ -304,28 +307,13 @@
     function explodeBoss() {
         shake = 100; document.body.classList.remove('cinema-active');
         const finalTime = ((Date.now() - gameStartTime) / 1000).toFixed(2);
-        
-        for(let i=0; i<300; i++) particles.push({x:boss.x, y:boss.y, vx:(Math.random()-0.5)*50, vy:(Math.random()-0.5)*50, s:Math.random()*15, l:2.5, c:"white"});
-        for(let i=0; i<50; i++) chunks.push({x: boss.x, y: boss.y, vx: (Math.random()-0.5)*35, vy: (Math.random()-0.5)*35, rot: Math.random()*6, vrot: (Math.random()-0.5)*0.3, size: 15+Math.random()*25, l: 3});
-        
         setTimeout(async () => { 
-            document.getElementById('win').style.display = "flex"; 
-            state = "WIN"; 
-            targetZoom = 1;
-            
-            // --- ENVOI FIREBASE ---
-            const playerName = prompt("INCROYABLE ! TEMPS : " + finalTime + "s\nENTRE TON NOM POUR LE CLASSEMENT :") || "Anonyme";
-            try {
-                await addDoc(collection(db, "scores"), {
-                    name: playerName,
-                    time: parseFloat(finalTime),
-                    date: Date.now()
-                });
-            } catch (e) { console.error("Erreur Firebase :", e); }
+            document.getElementById('win').style.display = "flex"; state = "WIN"; targetZoom = 1;
+            try { await addDoc(collection(db, "scores"), { name: playerName, time: parseFloat(finalTime), tries: tries, date: Date.now() });
+            } catch (e) { console.error(e); }
         }, 3500);
     }
 
-    // --- MISE À JOUR DU CLASSEMENT EN TEMPS RÉEL ---
     const q = query(collection(db, "scores"), orderBy("time", "asc"), limit(8));
     onSnapshot(q, (snapshot) => {
         const html = snapshot.docs.map(doc => {
