@@ -207,7 +207,6 @@
     function update(currentTime) {
         let dt = (currentTime - lastTime) / 16.66;
         if (dt > 2) dt = 2; lastTime = currentTime;
-        lineDashOffset -= 2 * dt;
 
         if (state === "PLAYING") {
             shake = Math.max(shake, rage === 2 ? 18 : (rage === 1 ? 4 : 0));
@@ -270,10 +269,8 @@
             }
         }
 
-        // --- ATTAQUE QUI SUIT LE JOUEUR (MINIONS) ---
         boss.minions.forEach(m => { 
-            let a = Math.atan2(p.y-m.y, p.x-m.x); 
-            m.x += Math.cos(a)*2.5*dt; m.y += Math.sin(a)*2.5*dt; 
+            let a = Math.atan2(p.y-m.y, p.x-m.x); m.x += Math.cos(a)*2.5*dt; m.y += Math.sin(a)*2.5*dt; 
             ctx.fillStyle = boss.color; ctx.fillRect(m.x-10, m.y-10, 20, 20); 
             if (Math.hypot(p.x-m.x, p.y-m.y) < 25) takeDamage(); 
         });
@@ -303,7 +300,16 @@
     }
     
     function explodeBoss() {
-        shake = 100; document.body.classList.remove('cinema-active');
+        shake = 100;
+        // EXPLOSION MASSIVE
+        for(let i=0; i<150; i++) {
+            particles.push({
+                x: boss.x, y: boss.y, 
+                vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40, 
+                s: Math.random()*15+5, l: 2, c: (i%2===0) ? boss.color : "white"
+            });
+        }
+        document.body.classList.remove('cinema-active');
         const finalTime = ((Date.now() - gameStartTime) / 1000).toFixed(2);
         setTimeout(async () => { 
             document.getElementById('win').style.display = "flex"; state = "WIN"; targetZoom = 1;
@@ -325,4 +331,5 @@
 </script>
 </body>
 </html>
+
 
