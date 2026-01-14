@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>FATED CUBE - BOSS 1 FINAL</title>
+    <title>FATED CUBE - SURVIVAL MODE</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
         body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Orbitron', sans-serif; cursor: pointer; }
@@ -60,7 +60,7 @@
             <div class="record-entry"><span>TENTATIVES:</span><span id="statTries">1</span></div>
         </div>
         <div class="panel">
-            <div style="color:#9d00ff; font-weight:bold; margin-bottom:10px; text-align:center;">🏆 WORLD RECORDS</div>
+            <div style="color:#9d00ff; font-weight:bold; margin-bottom:10px; text-align:center;">🏆 LONGEST SURVIVAL</div>
             <div id="leaderboard">Chargement...</div>
         </div>
     </div>
@@ -76,7 +76,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, where, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyC8YNJh5UzHHaGhBe7SrSyyysUBFzh55Z4",
@@ -96,8 +96,8 @@
 
     let state = "START", rage = 0, keys = {}, shake = 0, zoom = 1, overdriveUsed = false;
     let qteOn = false, qteTarget = "", qteCount = 0, qteTime = 5000, qteItv;
-    let meteors = [], bossLife = 60000, chunks = [], godMode = false;
-    let bossShake = 0, targetZoom = 1, lineDashOffset = 0;
+    let meteors = [], bossLife = 60000, godMode = false;
+    let bossShake = 0, targetZoom = 1;
     let lastTime = performance.now(), gameStartTime = 0;
     
     let playerName = "";
@@ -105,7 +105,7 @@
 
     let p = { x: 200, y: 325, tx: 200, ty: 325, size: 0, targetSize: 18, spd: 10.5, ang: 0, targetAng: 0, lastD: 0, dCoold: 500, hp: 3, inv: 0, color: "#9d00ff" };
     let boss = { x: 550, y: 325, color: "#ff0066", waves: [], minions: [], dead: false, visualSize: 80 };
-    let particles = [], ghosts = [];
+    let particles = [];
 
     window.startGame = function() {
         if (state !== "START") return;
@@ -116,7 +116,19 @@
         document.getElementById('intro').style.display = "none";
         state = "PLAYING"; p.size = 0; p.inv = 1000;
         gameStartTime = Date.now();
-        for(let i=0; i<40; i++) particles.push({x:p.x, y:p.y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, s:10, l:1.5, c:p.color});
+    }
+
+    // FONCTION POUR ENVOYER LE SCORE (EN CAS DE MORT OU VICTOIRE)
+    async function saveSurvivalScore() {
+        const finalTime = ((Date.now() - gameStartTime) / 1000).toFixed(2);
+        try {
+            await addDoc(collection(db, "scores"), { 
+                name: playerName, 
+                time: parseFloat(finalTime), 
+                tries: tries, 
+                date: Date.now() 
+            });
+        } catch (e) { console.error(e); }
     }
 
     window.retry = function() {
@@ -135,7 +147,12 @@
         if (godMode || p.inv > 0 || state !== "PLAYING" || boss.dead || isDashing) return;
         p.hp--; p.inv = 1200;
         if (p.hp >= 0) document.getElementById('h'+(p.hp+1)).classList.add('dead');
-        if (p.hp <= 0) { state = "GAMEOVER"; document.getElementById('gameOver').style.display = "flex"; return; }
+        if (p.hp <= 0) { 
+            state = "GAMEOVER"; 
+            saveSurvivalScore(); // ON SAUVEGARDE LE TEMPS DE SURVIE À LA MORT
+            document.getElementById('gameOver').style.display = "flex"; 
+            return; 
+        }
         if (rage === 2) { shake = 40; return; }
         startQTE();
     }
@@ -184,6 +201,18 @@
         if (qteOn && e.code === qteTarget && !keys[e.code]) {
             qteCount++; document.getElementById('qteBar').style.width = (qteCount/20*100) + "%";
             if (qteCount >= 20) successQTE();
+        }
+        // MODE ADMIN (TOUCHE P)
+        if (e.code === 'KeyP') {
+            const pass = prompt("ADMIN PASS:");
+            if (pass === "admin123") {
+                const target = prompt("NOM À SUPPRIMER:");
+                if (target) {
+                    const qDel = query(collection(db, "scores"), where("name", "==", target));
+                    getDocs(qDel).then(snap => snap.forEach(d => deleteDoc(doc(db, "scores", d.id))));
+                    alert("Supprimé !");
+                }
+            }
         }
         keys[e.code] = true;
     };
@@ -238,21 +267,18 @@
                     let m = Math.sqrt(dx*dx+dy*dy) || 1; 
                     p.tx = Math.max(15, Math.min(1085, p.tx + (dx/m) * 10.5 * dt)); 
                     p.ty = Math.max(15, Math.min(635, p.ty + (dy/m) * 10.5 * dt));
-                    if(Math.random() < 0.6 * dt) particles.push({x: p.x, y: p.y, vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4, s: 5, l: 0.8, c: p.color});
                 }
                 p.ang += (p.targetAng - p.ang) * 0.15 * dt;
                 p.x += (p.tx - p.x) * 0.35 * dt; p.y += (p.ty - p.y) * 0.35 * dt;
             }
-            if (!(p.inv > 0 && Math.floor(currentTime/100)%2===0)) {
-                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
-                let speedDist = Math.hypot(p.tx - p.x, p.ty - p.y);
-                let stretch = 1 + (speedDist / 25);
-                let squash = 1 / stretch;
-                ctx.scale(stretch, squash);
-                ctx.fillStyle = godMode ? "white" : p.color; ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
-                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
-                ctx.restore();
-            }
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
+            let speedDist = Math.hypot(p.tx - p.x, p.ty - p.y);
+            let stretch = 1 + (speedDist / 25);
+            let squash = 1 / stretch;
+            ctx.scale(stretch, squash);
+            ctx.fillStyle = godMode ? "white" : p.color; ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
+            if (!(p.inv > 0 && Math.floor(currentTime/100)%2===0)) ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+            ctx.restore();
         }
 
         if (!boss.dead) {
@@ -301,24 +327,14 @@
     
     function explodeBoss() {
         shake = 100;
-        // EXPLOSION MASSIVE
-        for(let i=0; i<150; i++) {
-            particles.push({
-                x: boss.x, y: boss.y, 
-                vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40, 
-                s: Math.random()*15+5, l: 2, c: (i%2===0) ? boss.color : "white"
-            });
-        }
+        for(let i=0; i<150; i++) particles.push({ x: boss.x, y: boss.y, vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40, s: Math.random()*15+5, l: 2, c: (i%2===0) ? boss.color : "white" });
         document.body.classList.remove('cinema-active');
-        const finalTime = ((Date.now() - gameStartTime) / 1000).toFixed(2);
-        setTimeout(async () => { 
-            document.getElementById('win').style.display = "flex"; state = "WIN"; targetZoom = 1;
-            try { await addDoc(collection(db, "scores"), { name: playerName, time: parseFloat(finalTime), tries: tries, date: Date.now() });
-            } catch (e) { console.error(e); }
-        }, 3500);
+        saveSurvivalScore(); // ON SAUVEGARDE AUSSI À LA VICTOIRE
+        setTimeout(() => { document.getElementById('win').style.display = "flex"; state = "WIN"; targetZoom = 1; }, 3500);
     }
 
-    const q = query(collection(db, "scores"), orderBy("time", "asc"), limit(8));
+    // CLASSEMENT : TRIÉ PAR 'DESC' (DÉCROISSANT) POUR LA SURVIE
+    const q = query(collection(db, "scores"), orderBy("time", "desc"), limit(8));
     onSnapshot(q, (snapshot) => {
         const html = snapshot.docs.map(doc => {
             const data = doc.data();
