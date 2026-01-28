@@ -2,36 +2,47 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>FATED CUBE - SURVIVAL MODE</title>
+    <title>FATED CUBE - FINAL STAND</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&display=swap');
-        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Orbitron', sans-serif; cursor: pointer; }
-        #gameCanvas { background: #0a0a0a; border: 4px solid #333; box-shadow: 0 0 20px rgba(0,0,0,0.5); border-radius: 10px; }
-        .main-ui { position: relative; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        body { margin: 0; background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: 'Orbitron', sans-serif; cursor: pointer; user-select: none; }
+        #gameCanvas { background: #050505; border: 2px solid #333; border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.5); transition: border-color 0.5s; }
+        .main-ui { position: relative; display: flex; flex-direction: column; align-items: center; gap: 15px; }
         #bossTimerContainer { position: absolute; top: -50px; text-align: center; width: 100%; }
-        #bossTimer { font-size: 30px; color: #ff0066; text-shadow: 0 0 10px #ff0066; }
+        #bossTimer { font-size: 35px; color: #ff0066; text-shadow: 0 0 10px #ff0066; font-weight: 900; }
         .hearts { display: flex; gap: 15px; }
-        .heart { width: 20px; height: 20px; background: #9d00ff; transform: rotate(45deg); position: relative; box-shadow: 0 0 10px #9d00ff; transition: 0.3s; }
-        .heart::before, .heart::after { content: ''; width: 20px; height: 20px; background: #9d00ff; border-radius: 50%; position: absolute; }
-        .heart::before { left: -10px; } .heart::after { top: -10px; }
-        .heart.dead { opacity: 0; transform: scale(0); filter: grayscale(1); }
-        .dash-bar { width: 150px; height: 10px; background: #111; border: 2px solid #333; border-radius: 5px; overflow: hidden; }
-        #dashFill { height: 100%; width: 0%; background: #444; }
+        .heart { width: 18px; height: 18px; background: #9d00ff; transform: rotate(45deg); position: relative; box-shadow: 0 0 10px #9d00ff; transition: 0.3s; }
+        .heart::before, .heart::after { content: ''; width: 18px; height: 18px; background: #9d00ff; border-radius: 50%; position: absolute; }
+        .heart::before { left: -9px; } .heart::after { top: -9px; }
+        .heart.dead { opacity: 0; transform: scale(0) rotate(45deg); }
+        .dash-bar { width: 150px; height: 8px; background: #111; border: 1px solid #444; border-radius: 4px; overflow: hidden; }
+        #dashFill { height: 100%; width: 0%; background: #444; transition: background 0.2s; }
         #dashFill.ready { background: #00f0ff; box-shadow: 0 0 10px #00f0ff; }
         .overlay { position: fixed; inset: 0; display: flex; justify-content: center; align-items: center; flex-direction: column; z-index: 100; pointer-events: none; }
-        #intro, #win, #gameOver { background: black; pointer-events: all; }
-        #qte, #flash, #prep, #win, #gameOver { display: none; }
+        #intro, #win, #gameOver { background: rgba(0,0,0,0.9); pointer-events: all; }
+        #qte, #flash, #prep, #win, #gameOver, #finalWarn { display: none; }
         #flash { animation: flashBg 0.4s infinite; z-index: 200; }
-        @keyframes flashBg { 0%, 100% { background: rgba(0, 240, 255, 0); } 50% { background: rgba(0, 240, 255, 0.4); } }
-        .title { font-size: 70px; color: #9d00ff; text-shadow: 0 0 30px #9d00ff; }
-        .cinema-bar { position: fixed; left: 0; width: 100%; height: 0; background: black; z-index: 1000; transition: height 1.5s ease; }
+        #finalWarn { z-index: 150; color: #ff4400; font-size: 50px; font-weight: 900; text-shadow: 0 0 20px #ff4400; animation: pulse 0.5s infinite; }
+        @keyframes flashBg { 0%, 100% { background: rgba(0, 240, 255, 0); } 50% { background: rgba(0, 240, 255, 0.3); } }
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.7; } }
+        .title { font-size: 60px; color: #9d00ff; text-shadow: 0 0 20px #9d00ff; font-weight: 900; }
+        .cinema-bar { position: fixed; left: 0; width: 100%; height: 0; background: black; z-index: 1000; transition: height 0.8s ease; }
         #bar-top { top: 0; } #bar-bottom { bottom: 0; }
-        .cinema-active .cinema-bar { height: 120px; }
-        button { background: none; border: 2px solid #9d00ff; color: white; padding: 15px 30px; font-family: 'Orbitron'; cursor: pointer; margin-top: 20px; transition: 0.3s; }
-        
-        .side-ui { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 20px; }
-        .panel { background: rgba(0,0,0,0.85); border: 1px solid #9d00ff; padding: 15px; border-radius: 10px; width: 220px; font-size: 11px; color: white; }
-        .record-entry { display: flex; justify-content: space-between; margin: 5px 0; border-bottom: 1px solid #333; padding-bottom: 2px; }
+        .cinema-active .cinema-bar { height: 100px; }
+        button { background: none; border: 2px solid #9d00ff; color: white; padding: 12px 25px; font-family: 'Orbitron'; cursor: pointer; margin-top: 20px; transition: 0.2s; }
+        button:hover { background: #9d00ff; box-shadow: 0 0 20px #9d00ff; }
+        .side-ui { position: absolute; right: 20px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 15px; }
+        .panel { background: rgba(10,10,10,0.9); border: 1px solid #333; padding: 15px; border-radius: 8px; width: 200px; font-size: 11px; color: white; }
+        #qte { background: rgba(0,0,0,0.5) !important; pointer-events: all; }
+        .ps4-btn { width: 100px; height: 100px; border-radius: 50%; border: 6px solid; display: flex; justify-content: center; align-items: center; font-size: 50px; font-weight: 900; margin: 0 auto; }
+        .ps-cross { border-color: #597fcc; color: #597fcc; }
+        .ps-circle { border-color: #cc5959; color: #cc5959; }
+        .ps-square { border-color: #b359cc; color: #b359cc; border-radius: 15px; }
+        .ps-triangle { border-color: #59cc8d; color: #59cc8d; clip-path: polygon(50% 0%, 0% 100%, 100% 100%); width: 110px; height: 100px; border: none; background: rgba(89, 204, 141, 0.2); }
+        .pharmacy-icon { width: 60px; height: 60px; background: #00ff66; position: relative; margin: 10px auto; box-shadow: 0 0 20px #00ff66; }
+        .pharmacy-icon::after { content: ''; position: absolute; width: 20px; height: 60px; background: #000; left: 20px; top: 0; }
+        .pharmacy-icon::before { content: ''; position: absolute; width: 60px; height: 20px; background: #000; left: 0; top: 20px; }
+        .fire-border { border: 6px solid #ff4400 !important; box-shadow: 0 0 40px #ff4400, inset 0 0 30px #ff4400 !important; }
     </style>
 </head>
 <body onclick="startGame()">
@@ -39,54 +50,51 @@
     <div id="bar-top" class="cinema-bar"></div>
     <div id="bar-bottom" class="cinema-bar"></div>
 
-    <div id="intro" class="overlay"><div class="title">FATED CUBE</div><div style="color:white; margin-top:20px;">CLIQUEZ POUR JOUER</div></div>
-    <div id="gameOver" class="overlay"><div class="title" style="color:#ff0000;">SYSTÈME CORROMPU</div><button onclick="retry()">RÉESSAYER</button></div>
-    <div id="win" class="overlay"><div class="title" style="color:#ffffff;">EXTERMINÉ</div><button onclick="location.reload()">BOSS SUIVANT</button></div>
-    <div id="flash" class="overlay"><div style="font-size:80px; font-weight:900; color:white; text-shadow: 0 0 20px #00f0ff;">OVERDRIVE!!!!!</div></div>
-    <div id="prep" class="overlay"><div style="color:#00f0ff; font-size:50px;">OVERDRIVE MODE</div><div style="color:#00f0ff; font-size: 80px;" id="prepClock">6</div></div>
+    <div id="intro" class="overlay">
+        <div class="title">FATED CUBE</div>
+        <div style="color:white; margin-top:10px;">CLIQUEZ OU APPUYEZ SUR [START] POUR JOUER</div>
+        <div id="padStatus" style="color:#555; font-size:10px; margin-top:10px;">MANETTE NON DÉTECTÉE</div>
+    </div>
+    
+    <div id="gameOver" class="overlay"><div class="title" style="color:#ff0000;">ÉCHEC</div><button onclick="retry()">REBOOT</button></div>
+    <div id="win" class="overlay"><div class="title" style="color:#fff;">VICTOIRE</div><button onclick="location.reload()">SUIVANT</button></div>
+    <div id="flash" class="overlay"><div style="font-size:70px; font-weight:900; color:white;">OVERDRIVE!!!!!</div></div>
+    <div id="prep" class="overlay"><div style="color:#00f0ff; font-size:40px;">OVERDRIVE MODE</div><div style="color:#00f0ff; font-size: 70px;" id="prepClock">6</div></div>
+    <div id="finalWarn" class="overlay">WALLS ON FIRE!</div>
 
     <div id="qte" class="overlay">
-        <div style="border: 5px solid #ff0066; padding: 40px; background: rgba(255, 0, 102, 0.2); text-align: center; border-radius: 20px;">
-            <div id="qteKey" style="font-size: 100px; color: white;">?</div>
-            <div style="width: 300px; height: 20px; background: #111; margin: 20px 0; border: 1px solid white;"><div id="qteBar" style="width: 0%; height: 100%; background: #ff0066;"></div></div>
-            <div id="qteTimerDisplay" style="color: #ff0066; font-size: 24px;">5.0s</div>
+        <div id="qteBox" style="border: 4px solid #ff0066; padding: 30px; background: #000; text-align: center; border-radius: 15px; z-index: 101; min-width: 300px;">
+            <div id="qteLabel" style="color: white; font-weight: 900; font-size: 20px; margin-bottom: 10px;"></div>
+            <div id="qtePharmacyIcon" style="display:none;" class="pharmacy-icon"></div>
+            <div id="qteKeyContainer"></div>
+            <div style="width: 250px; height: 15px; background: #111; margin: 15px 0 auto;"><div id="qteBar" style="width: 0%; height: 100%; background: #ff0066;"></div></div>
+            <div id="qteTimerDisplay" style="color: #ff0066;">5.0s</div>
         </div>
     </div>
 
     <div class="side-ui">
         <div class="panel">
-            <div style="color:#00f0ff; font-weight:bold; margin-bottom:10px; text-align:center;">📊 SESSION STATS</div>
-            <div class="record-entry"><span>COMBATTANT:</span><span id="statName">-</span></div>
-            <div class="record-entry"><span>TENTATIVES:</span><span id="statTries">1</span></div>
+            <div style="color:#00f0ff; font-weight:bold; margin-bottom:10px; text-align:center;">📊 STATUS</div>
+            <div style="display:flex; justify-content:space-between;"><span>PILOTE:</span><span id="statName">-</span></div>
+            <div style="display:flex; justify-content:space-between;"><span>ESSAIS:</span><span id="statTries">1</span></div>
         </div>
-        <div class="panel">
-            <div style="color:#9d00ff; font-weight:bold; margin-bottom:10px; text-align:center;">🏆 LONGEST SURVIVAL</div>
-            <div id="leaderboard">Chargement...</div>
-        </div>
+        <div class="panel"><div id="leaderboard" style="font-size:10px;">Sync...</div></div>
     </div>
 
     <div class="main-ui">
         <div id="bossTimerContainer"><div id="bossTimer">60.00</div></div>
         <div class="hearts"><div id="h1" class="heart"></div><div id="h2" class="heart"></div><div id="h3" class="heart"></div></div>
         <div style="display: flex; align-items: center; gap: 20px;">
-            <div style="text-align: center;"><div style="color:#9d00ff; font-size:10px;">DASH</div><div class="dash-bar"><div id="dashFill"></div></div></div>
+            <div style="text-align: center;"><div style="color:#9d00ff; font-size:10px; margin-bottom:5px;">DASH</div><div class="dash-bar"><div id="dashFill"></div></div></div>
             <canvas id="gameCanvas"></canvas>
         </div>
     </div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot, getDocs, where, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyC8YNJh5UzHHaGhBe7SrSyyysUBFzh55Z4",
-        authDomain: "fated-cube-scores.firebaseapp.com",
-        projectId: "fated-cube-scores",
-        storageBucket: "fated-cube-scores.firebasestorage.app",
-        messagingSenderId: "684040582440",
-        appId: "1:684040582440:web:d71024d1615784af544c1d"
-    };
-
+    const firebaseConfig = { apiKey: "AIzaSyC8YNJh5UzHHaGhBe7SrSyyysUBFzh55Z4", authDomain: "fated-cube-scores.firebaseapp.com", projectId: "fated-cube-scores", storageBucket: "fated-cube-scores.firebasestorage.app", messagingSenderId: "684040582440", appId: "1:684040582440:web:d71024d1615784af544c1d" };
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -95,72 +103,87 @@
     canvas.width = 1100; canvas.height = 650;
 
     let state = "START", rage = 0, keys = {}, shake = 0, zoom = 1, overdriveUsed = false;
-    let qteOn = false, qteTarget = "", qteCount = 0, qteTime = 5000, qteItv;
+    let qteOn = false, qteTarget = "", qteCount = 0, qteTime = 5000, qteItv, qtePadIdx = -1, qteType = "DAMAGE";
     let meteors = [], bossLife = 60000, godMode = false;
-    let bossShake = 0, targetZoom = 1;
-    let lastTime = performance.now(), gameStartTime = 0;
+    let bossShake = 0, targetZoom = 1, gameStartTime = 0, lastPharmacyTime = 0, lastJacobTime = 0;
+    let lastTime = performance.now(), playerName = "", tries = 1;
+    let singularities = [], jacobPillars = [];
+    let padDashPressed = false, padQTEPressed = false, gamepadIndex = null;
+    let isFinalPhase = false;
     
-    let playerName = "";
-    let tries = 1;
+    const TIME_SCALE = 0.8;
 
-    let p = { x: 200, y: 325, tx: 200, ty: 325, size: 0, targetSize: 18, spd: 10.5, ang: 0, targetAng: 0, lastD: 0, dCoold: 500, hp: 3, inv: 0, color: "#9d00ff" };
+    let p = { x: 200, y: 325, tx: 200, ty: 325, size: 0, targetSize: 22, spd: 9, ang: 0, targetAng: 0, lastD: 0, dCoold: 500, hp: 3, inv: 3000 };
     let boss = { x: 550, y: 325, color: "#ff0066", waves: [], minions: [], dead: false, visualSize: 80 };
     let particles = [];
 
+    window.addEventListener("gamepadconnected", (e) => {
+        gamepadIndex = e.gamepad.index;
+        document.getElementById('padStatus').innerText = "PS4 CONTROLLER DETECTED";
+        document.getElementById('padStatus').style.color = "#00f0ff";
+    });
+
     window.startGame = function() {
         if (state !== "START") return;
-        if (!playerName) {
-            playerName = prompt("VOTRE NOM :") || "Anonyme";
-            document.getElementById('statName').innerText = playerName.toUpperCase();
-        }
+        if (!playerName) playerName = prompt("NOM DU PILOTE :") || "Inconnu";
+        document.getElementById('statName').innerText = playerName.toUpperCase();
         document.getElementById('intro').style.display = "none";
-        state = "PLAYING"; p.size = 0; p.inv = 1000;
+        state = "PLAYING"; lastPharmacyTime = Date.now(); lastJacobTime = Date.now();
         gameStartTime = Date.now();
-    }
-
-    // FONCTION POUR ENVOYER LE SCORE (EN CAS DE MORT OU VICTOIRE)
-    async function saveSurvivalScore() {
-        const finalTime = ((Date.now() - gameStartTime) / 1000).toFixed(2);
-        try {
-            await addDoc(collection(db, "scores"), { 
-                name: playerName, 
-                time: parseFloat(finalTime), 
-                tries: tries, 
-                date: Date.now() 
-            });
-        } catch (e) { console.error(e); }
     }
 
     window.retry = function() {
-        tries++;
-        document.getElementById('statTries').innerText = tries;
-        state = "PLAYING";
+        tries++; document.getElementById('statTries').innerText = tries;
+        state = "PLAYING"; rage = 0; overdriveUsed = false; isFinalPhase = false;
+        canvas.classList.remove('fire-border');
+        document.getElementById('finalWarn').style.display = "none";
         document.getElementById('gameOver').style.display = "none";
-        p.hp = 3; p.x = 200; p.y = 325; p.tx = 200; p.ty = 325; p.inv = 1000;
-        bossLife = 60000; boss.waves = []; boss.minions = []; meteors = [];
+        p.hp = 3; p.x = 200; p.y = 325; p.tx = 200; p.ty = 325; p.inv = 3000;
+        bossLife = 60000; boss.waves = []; boss.minions = []; meteors = []; singularities = []; jacobPillars = [];
         for(let i=1; i<=3; i++) document.getElementById('h'+i).classList.remove('dead');
-        gameStartTime = Date.now();
+        gameStartTime = Date.now(); lastPharmacyTime = Date.now(); lastJacobTime = Date.now();
+    }
+
+    function clearAllThreats() {
+        boss.waves = []; boss.minions = []; meteors = []; jacobPillars = [];
     }
 
     function takeDamage() {
-        let isDashing = (performance.now() - p.lastD < 120);
-        if (godMode || p.inv > 0 || state !== "PLAYING" || boss.dead || isDashing) return;
+        if (godMode || p.inv > 0 || state !== "PLAYING" || boss.dead) return;
         p.hp--; p.inv = 1200;
         if (p.hp >= 0) document.getElementById('h'+(p.hp+1)).classList.add('dead');
-        if (p.hp <= 0) { 
-            state = "GAMEOVER"; 
-            saveSurvivalScore(); // ON SAUVEGARDE LE TEMPS DE SURVIE À LA MORT
-            document.getElementById('gameOver').style.display = "flex"; 
-            return; 
-        }
-        if (rage === 2) { shake = 40; return; }
-        startQTE();
+        if (p.hp <= 0) { state = "GAMEOVER"; document.getElementById('gameOver').style.display = "flex"; return; }
+        if (rage === 2) { shake = 30; return; }
+        startQTE("DAMAGE");
     }
 
-    function startQTE() {
-        qteOn = true; state = "PAUSED"; qteCount = 0; qteTime = 5000;
-        qteTarget = ["KeyQ", "KeyW", "KeyE", "KeyR"][Math.floor(Math.random()*4)];
-        document.getElementById('qteKey').innerText = qteTarget.replace("Key", "");
+    function startQTE(type = "DAMAGE") {
+        qteOn = true; qteCount = 0; qteType = type;
+        qteTime = (type === "PHARMACY") ? 3500 : 5000;
+        const choices = (gamepadIndex !== null && navigator.getGamepads()[gamepadIndex]) ? [0, 1, 2, 3] : ["KeyQ", "KeyW", "KeyE", "KeyR"];
+        qtePadIdx = Math.floor(Math.random() * choices.length);
+        qteTarget = choices[qtePadIdx];
+        const container = document.getElementById('qteKeyContainer');
+        const qteBox = document.getElementById('qteBox');
+        const label = document.getElementById('qteLabel');
+        const bar = document.getElementById('qteBar');
+        const pharmIcon = document.getElementById('qtePharmacyIcon');
+
+        if(type === "PHARMACY") {
+            qteBox.style.borderColor = "#00ff66"; label.innerText = "+1 VIE"; label.style.color = "#00ff66";
+            bar.style.background = "#00ff66"; pharmIcon.style.display = "block";
+        } else {
+            qteBox.style.borderColor = "#ff0066"; label.innerText = ""; bar.style.background = "#ff0066"; pharmIcon.style.display = "none";
+        }
+
+        if (gamepadIndex !== null) {
+            const classes = ["ps-cross", "ps-circle", "ps-square", "ps-triangle"];
+            const icons = ["✕", "○", "□", "△"];
+            container.innerHTML = `<div class="ps4-btn ${classes[qtePadIdx]}">${icons[qtePadIdx]}</div>`;
+        } else {
+            container.innerHTML = `<div id="qteKey" style="font-size: 80px; color: white; font-weight: 900;">${qteTarget.replace("Key", "")}</div>`;
+        }
+
         document.getElementById('qte').style.display = "flex";
         if (qteItv) clearInterval(qteItv);
         qteItv = setInterval(() => { 
@@ -170,19 +193,27 @@
         }, 100);
     }
 
-    function failQTE() {
-        clearInterval(qteItv); document.getElementById('qte').style.display = "none"; qteOn = false;
-        if (rage === 1 && !overdriveUsed) { overdriveUsed = true; runOverdriveSequence(); } 
-        else { rage = 1; boss.color = "#ff0000"; p.inv = 2000; state = "PLAYING"; }
-    }
-
     function successQTE() {
         clearInterval(qteItv); document.getElementById('qte').style.display = "none"; qteOn = false;
-        rage = 0; boss.color = "#ff0066"; p.inv = 2000; state = "PLAYING";
+        clearAllThreats();
+        if(qteType === "PHARMACY") {
+            if(p.hp < 3) { p.hp++; document.getElementById('h'+p.hp).classList.remove('dead'); } 
+            else { bossLife -= 5000; }
+        } else {
+            rage = 0; boss.color = "#ff0066"; p.inv = 2500;
+        }
+    }
+
+    function failQTE() {
+        clearInterval(qteItv); document.getElementById('qte').style.display = "none"; qteOn = false;
+        clearAllThreats();
+        if (qteType === "PHARMACY") return;
+        if (rage === 1 && !overdriveUsed) runOverdriveSequence(); 
+        else { rage = 1; boss.color = "#ff0000"; p.inv = 2500; }
     }
 
     function runOverdriveSequence() {
-        state = "PAUSED"; document.getElementById('flash').style.display = "flex";
+        overdriveUsed = true; document.getElementById('flash').style.display = "flex";
         p.hp = 3; for(let i=1; i<=3; i++) document.getElementById('h'+i).classList.remove('dead');
         setTimeout(() => {
             document.getElementById('flash').style.display = "none";
@@ -190,162 +221,203 @@
             let count = 6; document.getElementById('prep').style.display = "flex";
             let timer = setInterval(() => {
                 count--; document.getElementById('prepClock').innerText = count;
-                if (count <= 0) { clearInterval(timer); document.getElementById('prep').style.display = "none"; state = "PLAYING"; p.inv = 1000; }
+                if (count <= 0) { clearInterval(timer); document.getElementById('prep').style.display = "none"; state = "PLAYING"; }
             }, 1000);
         }, 1500);
     }
 
-    window.onkeydown = (e) => {
+    window.addEventListener('keydown', (e) => {
         if (e.code === 'KeyK') godMode = !godMode;
-        if (e.code === 'KeyM' && state === "PLAYING") bossLife -= 10000;
-        if (qteOn && e.code === qteTarget && !keys[e.code]) {
+        if (qteOn && e.code === qteTarget) {
             qteCount++; document.getElementById('qteBar').style.width = (qteCount/20*100) + "%";
             if (qteCount >= 20) successQTE();
+            return;
         }
-        // MODE ADMIN (TOUCHE P)
-        if (e.code === 'KeyP') {
-            const pass = prompt("ADMIN PASS:");
-            if (pass === "admin123") {
-                const target = prompt("NOM À SUPPRIMER:");
-                if (target) {
-                    const qDel = query(collection(db, "scores"), where("name", "==", target));
-                    getDocs(qDel).then(snap => snap.forEach(d => deleteDoc(doc(db, "scores", d.id))));
-                    alert("Supprimé !");
-                }
-            }
-        }
+        if (e.code === 'Space' && !qteOn) { if (performance.now() - p.lastD >= p.dCoold) dash(); }
         keys[e.code] = true;
-    };
+    });
 
-    window.onkeyup = (e) => {
-        if (e.code === 'Space' && performance.now() - p.lastD >= p.dCoold && state !== "PAUSED" && !qteOn) dash();
-        keys[e.code] = false;
-    };
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
 
     function dash() {
         let dx = 0, dy = 0;
         if (keys['KeyW']) dy--; if (keys['KeyS']) dy++; if (keys['KeyA']) dx--; if (keys['KeyD']) dx++;
+        const gamepad = (gamepadIndex !== null) ? navigator.getGamepads()[gamepadIndex] : null;
+        if(gamepad && dx === 0 && dy === 0) {
+            dx = gamepad.axes[0]; dy = gamepad.axes[1];
+            if(Math.abs(dx) < 0.2) dx = 0; if(Math.abs(dy) < 0.2) dy = 0;
+        }
         if (dx === 0 && dy === 0) { dx = Math.cos(p.ang); dy = Math.sin(p.ang); }
         let mag = Math.sqrt(dx*dx+dy*dy) || 1;
         p.lastD = performance.now(); 
-        p.tx = Math.max(15, Math.min(1085, p.tx + (dx/mag)*230)); p.ty = Math.max(15, Math.min(635, p.ty + (dy/mag)*230));
-        p.x = p.tx; p.y = p.ty;
-        for(let i=0; i<30; i++) particles.push({x:p.x, y:p.y, vx:(Math.random()-0.5)*20, vy:(Math.random()-0.5)*20, s:8, l:1, c:p.color});
+        p.tx = Math.max(15, Math.min(1085, p.tx + (dx/mag)*240)); p.ty = Math.max(15, Math.min(635, p.ty + (dy/mag)*240));
+        p.x = p.tx; p.y = p.ty; 
+        for(let i=0; i<15; i++) particles.push({x:p.x, y:p.y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, s:5, l:1, c:"#fff"});
     }
 
     function update(currentTime) {
-        let dt = (currentTime - lastTime) / 16.66;
-        if (dt > 2) dt = 2; lastTime = currentTime;
+        let dt = ((currentTime - lastTime) / 16.66) * TIME_SCALE;
+        if (dt > 1.5) dt = 1.5; lastTime = currentTime;
 
-        if (state === "PLAYING") {
-            shake = Math.max(shake, rage === 2 ? 18 : (rage === 1 ? 4 : 0));
+        if (state === "PLAYING" && !qteOn) {
             bossLife -= 16.66 * dt;
             document.getElementById('bossTimer').innerText = (Math.max(0, bossLife)/1000).toFixed(2);
+            
+            if (bossLife <= 15000 && !isFinalPhase) {
+                isFinalPhase = true;
+                canvas.classList.add('fire-border');
+                document.getElementById('finalWarn').style.display = "flex";
+                setTimeout(() => { document.getElementById('finalWarn').style.display = "none"; }, 3000);
+            }
+
+            if (isFinalPhase) {
+                shake = Math.max(shake, 14); 
+                if (p.x <= 25 || p.x >= 1075 || p.y <= 25 || p.y >= 625) takeDamage();
+            }
+
             if (bossLife <= 0) startDeathCinematic();
-            let dashProgress = Math.min(100, (performance.now() - p.lastD) / p.dCoold * 100);
-            document.getElementById('dashFill').style.width = dashProgress + "%";
-            if (dashProgress >= 100) document.getElementById('dashFill').classList.add('ready');
+            if (Date.now() - lastPharmacyTime > 15000) { startQTE("PHARMACY"); lastPharmacyTime = Date.now(); }
+            if (Date.now() - lastJacobTime > 8000) {
+                for(let i=0; i<5; i++) {
+                    let targetX = (i === 0) ? p.x : Math.random() * canvas.width;
+                    jacobPillars.push({ x: targetX, timer: 1500, active: false, width: 0 });
+                }
+                lastJacobTime = Date.now();
+            }
         }
 
-        zoom += (targetZoom - zoom) * 0.05 * dt;
-        let offX = (Math.random()-0.5)*shake, offY = (Math.random()-0.5)*shake;
-        shake *= Math.pow(0.94, dt);
+        const gamepad = (gamepadIndex !== null) ? navigator.getGamepads()[gamepadIndex] : null;
+        let gpX = 0, gpY = 0;
+        if (gamepad) {
+            if (state === "START" && (gamepad.buttons[9].pressed || gamepad.buttons[0].pressed)) startGame();
+            if (state === "GAMEOVER" && gamepad.buttons[0].pressed) retry();
+            if (state === "PLAYING") {
+                gpX = gamepad.axes[0]; gpY = gamepad.axes[1];
+                if (Math.abs(gpX) < 0.15) gpX = 0; if (Math.abs(gpY) < 0.15) gpY = 0;
+                if (gamepad.buttons[0].pressed && !padDashPressed && !qteOn) { if (performance.now() - p.lastD >= p.dCoold) dash(); padDashPressed = true; } 
+                else if (!gamepad.buttons[0].pressed) { padDashPressed = false; }
+                if (qteOn) {
+                    let targetPressed = gamepad.buttons[qtePadIdx].pressed;
+                    if (targetPressed && !padQTEPressed) { qteCount++; document.getElementById('qteBar').style.width = (qteCount/20*100) + "%"; if (qteCount >= 20) successQTE(); padQTEPressed = true; } 
+                    else if (!targetPressed) { padQTEPressed = false; }
+                }
+            }
+        }
 
-        let camX = (state === "CINEMATIC") ? boss.x : canvas.width/2;
-        let camY = (state === "CINEMATIC") ? boss.y : canvas.height/2;
-        ctx.setTransform(zoom, 0, 0, zoom, (canvas.width/2) - camX * zoom + offX, (canvas.height/2) - camY * zoom + offY);
-        ctx.fillStyle = "#0a0a0a"; ctx.fillRect(-2000, -2000, 4000, 4000);
+        if (state === "PLAYING" && !qteOn) {
+            let dx = gpX, dy = gpY;
+            if (keys['KeyW'] || keys['ArrowUp']) dy--; if (keys['KeyS'] || keys['ArrowDown']) dy++; 
+            if (keys['KeyA'] || keys['ArrowLeft']) dx--; if (keys['KeyD'] || keys['ArrowRight']) dx++;
+            if (dx !== 0 || dy !== 0) {
+                p.targetAng = Math.atan2(dy, dx);
+                let m = Math.sqrt(dx*dx+dy*dy) || 1;
+                p.tx = Math.max(10, Math.min(1090, p.tx + (dx/m) * p.spd * dt));
+                p.ty = Math.max(10, Math.min(640, p.ty + (dy/m) * p.spd * dt));
+            }
+            p.ang += (p.targetAng - p.ang) * 0.2 * dt;
+            p.x += (p.tx - p.x) * 0.4 * dt; p.y += (p.ty - p.y) * 0.4 * dt;
+            if (p.inv > 0) p.inv -= 16.6 * dt;
+            let dp = Math.min(100, (performance.now() - p.lastD) / p.dCoold * 100);
+            document.getElementById('dashFill').style.width = dp + "%";
+            if(dp >= 100) document.getElementById('dashFill').classList.add('ready');
+        }
+
+        zoom += (targetZoom - zoom) * 0.1 * dt;
+        let ox = (Math.random()-0.5)*shake, oy = (Math.random()-0.5)*shake;
+        shake *= Math.pow(0.9, dt);
+        ctx.setTransform(zoom, 0, 0, zoom, (canvas.width/2) - (state === "CINEMATIC" ? boss.x : canvas.width/2) * zoom + ox, (canvas.height/2) - (state === "CINEMATIC" ? boss.y : canvas.height/2) * zoom + oy);
+        ctx.fillStyle = qteOn ? "#000" : "#050505"; ctx.fillRect(-1000, -1000, 3000, 2500);
+
+        if (isFinalPhase && state !== "CINEMATIC") {
+            ctx.strokeStyle = "#ff4400"; ctx.lineWidth = 12; ctx.strokeRect(6, 6, canvas.width-12, canvas.height-12);
+            if (Math.random() < 0.4) {
+                for(let i=0; i<3; i++) {
+                    particles.push({x: Math.random()*canvas.width, y: Math.random()<0.5?12:638, vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4, s:5, l:0.9, c:"#ffaa00"});
+                    particles.push({x: Math.random()<0.5?12:1088, y: Math.random()*canvas.height, vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4, s:5, l:0.9, c:"#ff4400"});
+                }
+            }
+        }
+
+        jacobPillars.forEach((jp, i) => {
+            if (jp.timer > 0) {
+                jp.timer -= 16.6 * dt; ctx.fillStyle = "rgba(255, 255, 255, 0.15)"; ctx.fillRect(jp.x - 45, 0, 90, canvas.height);
+            } else {
+                jp.width += (125 - jp.width) * 0.15 * dt;
+                let grad = ctx.createLinearGradient(jp.x - jp.width/2, 0, jp.x + jp.width/2, 0);
+                grad.addColorStop(0, "rgba(255, 255, 255, 0)"); grad.addColorStop(0.5, "rgba(255, 255, 255, 1)"); grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+                ctx.fillStyle = grad; ctx.fillRect(jp.x - jp.width/2, 0, jp.width, canvas.height);
+                if (Math.abs(p.x - jp.x) < jp.width/2 && !qteOn) takeDamage();
+                if (jp.width > 120) { jacobPillars.splice(i, 1); shake = 20; }
+            }
+        });
 
         if (state !== "START" && state !== "GAMEOVER") {
             p.size += (p.targetSize - p.size) * 0.1 * dt;
-            if (p.inv > 0) p.inv -= 16.6 * dt;
-            if (state !== "CINEMATIC") {
-                let dx = 0, dy = 0;
-                if (keys['KeyW']) dy--; if (keys['KeyS']) dy++; if (keys['KeyA']) dx--; if (keys['KeyD']) dx++;
-                if (dx !== 0 || dy !== 0) { 
-                    p.targetAng = Math.atan2(dy, dx); 
-                    let m = Math.sqrt(dx*dx+dy*dy) || 1; 
-                    p.tx = Math.max(15, Math.min(1085, p.tx + (dx/m) * 10.5 * dt)); 
-                    p.ty = Math.max(15, Math.min(635, p.ty + (dy/m) * 10.5 * dt));
-                }
-                p.ang += (p.targetAng - p.ang) * 0.15 * dt;
-                p.x += (p.tx - p.x) * 0.35 * dt; p.y += (p.ty - p.y) * 0.35 * dt;
-            }
+            let vel = Math.hypot(p.tx - p.x, p.ty - p.y);
+            let stretch = 1 + vel * 0.05;
             ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.ang);
-            let speedDist = Math.hypot(p.tx - p.x, p.ty - p.y);
-            let stretch = 1 + (speedDist / 25);
-            let squash = 1 / stretch;
-            ctx.scale(stretch, squash);
-            ctx.fillStyle = godMode ? "white" : p.color; ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
-            if (!(p.inv > 0 && Math.floor(currentTime/100)%2===0)) ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+            ctx.fillStyle = (p.inv > 0 && Math.floor(currentTime/80)%2===0) ? "transparent" : "white";
+            ctx.fillRect(-p.size*stretch/2, -p.size/(stretch*0.8)/2, p.size*stretch, p.size/(stretch*0.8));
             ctx.restore();
         }
 
-        if (!boss.dead) {
-            boss.visualSize += (80 - boss.visualSize) * 0.1 * dt;
-            ctx.save(); ctx.translate(boss.x + (Math.random()-0.5)*bossShake, boss.y + (Math.random()-0.5)*bossShake); 
-            ctx.fillStyle = boss.color; ctx.shadowBlur = 30; ctx.shadowColor = boss.color;
-            ctx.fillRect(-boss.visualSize/2, -boss.visualSize/2, boss.visualSize, boss.visualSize);
-            ctx.restore();
-            if (state === "PLAYING") {
-                let freq = (rage === 1) ? 1100 : 2100;
-                if (Math.floor(currentTime/freq) !== Math.floor((currentTime-20)/freq)) { boss.waves.push({r: 10}); boss.visualSize = 110; }
-                if (Math.floor(currentTime/3500) !== Math.floor((currentTime-20)/3500)) boss.minions.push({x:boss.x, y:boss.y});
-                if (rage === 2 && Math.random() < 0.25) meteors.push({ x: Math.random()*canvas.width*1.5-canvas.width*0.5, y: -50, spd: 11 });
+        if (!boss.dead && !qteOn) {
+            boss.visualSize += (80 - boss.visualSize) * 0.1 * dt; ctx.fillStyle = boss.color;
+            ctx.fillRect(boss.x - boss.visualSize/2 + (Math.random()-0.5)*bossShake, boss.y - boss.visualSize/2 + (Math.random()-0.5)*bossShake, boss.visualSize, boss.visualSize);
+            if (jacobPillars.length === 0) {
+                let freq = (rage === 1) ? 2400 : 4000;
+                if (Math.floor(currentTime/freq) !== Math.floor((currentTime-25)/freq)) { boss.waves.push({r:10}); boss.visualSize = 110; }
             }
+            if (Math.floor(currentTime/6000) !== Math.floor((currentTime-20)/6000)) boss.minions.push({x:boss.x, y:boss.y});
+            if (rage === 2 && Math.random() < 0.1) meteors.push({ x: Math.random()*canvas.width, y: -50, spd: 10 });
         }
 
-        boss.minions.forEach(m => { 
-            let a = Math.atan2(p.y-m.y, p.x-m.x); m.x += Math.cos(a)*2.5*dt; m.y += Math.sin(a)*2.5*dt; 
-            ctx.fillStyle = boss.color; ctx.fillRect(m.x-10, m.y-10, 20, 20); 
-            if (Math.hypot(p.x-m.x, p.y-m.y) < 25) takeDamage(); 
+        if (!qteOn) {
+            boss.minions.forEach((m) => {
+                let a = Math.atan2(p.y-m.y, p.x-m.x); m.x += Math.cos(a)*2.6*dt; m.y += Math.sin(a)*2.6*dt;
+                ctx.fillStyle = boss.color; ctx.fillRect(m.x-10, m.y-10, 20, 20);
+                if (Math.hypot(p.x-m.x, p.y-m.y) < 25) takeDamage();
+            });
+            boss.waves.forEach((w, i) => {
+                ctx.beginPath(); ctx.arc(boss.x, boss.y, w.r, 0, Math.PI*2); ctx.strokeStyle = boss.color; ctx.lineWidth = 15; ctx.stroke();
+                w.r += (rage === 1 ? 8 : 6) * dt;
+                if (w.r > 1300) boss.waves.splice(i, 1);
+                if (Math.abs(Math.hypot(p.x-boss.x, p.y-boss.y)-w.r) < 20) takeDamage();
+            });
+            meteors.forEach((m, i) => {
+                m.y += m.spd*dt; ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill();
+                if (m.y > 700) meteors.splice(i, 1);
+                if (Math.hypot(p.x-m.x, p.y-m.y) < 35) takeDamage();
+            });
+        }
+        particles.forEach((pt, i) => {
+            ctx.globalAlpha = pt.l; ctx.fillStyle = pt.c; ctx.fillRect(pt.x, pt.y, pt.s, pt.s);
+            pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.l -= 0.02*dt; if (pt.l <= 0) particles.splice(i, 1);
         });
-
-        boss.waves.forEach((w, i) => { ctx.beginPath(); ctx.arc(boss.x, boss.y, w.r, 0, Math.PI*2); ctx.strokeStyle = boss.color; ctx.lineWidth = 18; ctx.stroke(); w.r += ((rage === 1) ? 8 : 6) * dt; if (w.r > 1500) boss.waves.splice(i, 1); if (Math.abs(Math.hypot(p.x-boss.x, p.y-boss.y)-w.r) < 25) takeDamage(); });
-
-        meteors.forEach((m, i) => { 
-            m.x += m.spd*dt; m.y += m.spd*dt; 
-            for(let j=0; j<2; j++) particles.push({x:m.x, y:m.y, vx:(Math.random()-0.5)*5, vy:(Math.random()-0.5)*5, s:Math.random()*10, l:0.5, c: Math.random()>0.5?"#ff4400":"#ffcc00"});
-            ctx.fillStyle = "#ff4400"; ctx.beginPath(); ctx.arc(m.x, m.y, 20, 0, Math.PI*2); ctx.fill();
-            if (m.y > 800) meteors.splice(i, 1); 
-            if (Math.hypot(p.x-m.x, p.y-m.y) < 35) takeDamage(); 
-        });
-
-        particles.forEach((pt, i) => { ctx.save(); ctx.globalAlpha = pt.l; ctx.fillStyle = pt.c; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); ctx.restore(); pt.x += pt.vx*dt; pt.y += pt.vy*dt; pt.l -= 0.02*dt; if (pt.l <= 0) particles.splice(i, 1); });
+        ctx.globalAlpha = 1;
         requestAnimationFrame(update);
     }
 
     function startDeathCinematic() {
-        state = "CINEMATIC"; document.body.classList.add('cinema-active');
-        setTimeout(() => { targetZoom = 2.5; setTimeout(() => {
-                let intensity = 0; let tremble = setInterval(() => { intensity += 0.5; bossShake = intensity;
-                    if (intensity > 25) { clearInterval(tremble); bossShake = 0; setTimeout(() => { boss.dead = true; explodeBoss(); }, 500); }
-                }, 50);
-            }, 1500);
-        }, 1500);
-    }
-    
-    function explodeBoss() {
-        shake = 100;
-        for(let i=0; i<150; i++) particles.push({ x: boss.x, y: boss.y, vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40, s: Math.random()*15+5, l: 2, c: (i%2===0) ? boss.color : "white" });
-        document.body.classList.remove('cinema-active');
-        saveSurvivalScore(); // ON SAUVEGARDE AUSSI À LA VICTOIRE
-        setTimeout(() => { document.getElementById('win').style.display = "flex"; state = "WIN"; targetZoom = 1; }, 3500);
+        state = "CINEMATIC"; document.body.classList.add('cinema-active'); targetZoom = 2;
+        setTimeout(() => {
+            let it = 0; let tr = setInterval(() => { it += 0.5; bossShake = it; if (it > 20) { clearInterval(tr); boss.dead = true; explode(); }}, 50);
+        }, 1000);
     }
 
-    // CLASSEMENT : TRIÉ PAR 'DESC' (DÉCROISSANT) POUR LA SURVIE
-    const q = query(collection(db, "scores"), orderBy("time", "desc"), limit(8));
-    onSnapshot(q, (snapshot) => {
-        const html = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return `<div class="record-entry"><span>${data.name}</span><span style="color:cyan">${data.time}s</span></div>`;
-        }).join('');
-        document.getElementById('leaderboard').innerHTML = html || "Aucun record";
+    function explode() {
+        shake = 80; for(let i=0; i<80; i++) particles.push({ x: boss.x, y: boss.y, vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40, s: Math.random()*15+5, l: 2, c: i%2===0?boss.color:"#fff" });
+        setTimeout(() => { document.getElementById('win').style.display = "flex"; state = "WIN"; targetZoom = 1; document.body.classList.remove('cinema-active'); }, 3000);
+    }
+
+    onSnapshot(query(collection(db, "scores"), orderBy("time", "desc"), limit(8)), (sn) => {
+        document.getElementById('leaderboard').innerHTML = sn.docs.map(d => `<div style="display:flex; justify-content:space-between; margin-bottom:5px; border-bottom:1px solid #222;"><span>${d.data().name}</span><span style="color:cyan">${d.data().time}s</span></div>`).join('') || "Aucun record";
     });
 
     requestAnimationFrame(update);
 </script>
 </body>
 </html>
+
 
 
